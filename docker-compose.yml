@@ -1,0 +1,20 @@
+services:
+  vote:
+    build: .
+    image: ranked-choice-vote:latest
+    container_name: ranked-choice-vote
+    restart: unless-stopped
+    ports:
+      # host:container — change the host port to taste / put behind your reverse proxy
+      - "3000:3000"
+    environment:
+      # REQUIRED in production — set real values (see .env.example).
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?set ADMIN_PASSWORD}"
+      SESSION_SECRET: "${SESSION_SECRET:?set SESSION_SECRET}"
+      # Optional: force the public voting URL shown on the admin QR/link
+      # (applied at runtime). Otherwise the admin page uses its own origin.
+      # VOTE_URL: "https://vote.saltychart.net"
+    volumes:
+      # Persist the SQLite db + uploaded images. On unraid point this at e.g.
+      # /mnt/user/appdata/ranked-choice-vote
+      - ./data:/data
