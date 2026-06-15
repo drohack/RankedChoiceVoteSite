@@ -78,7 +78,8 @@ failing test blocks the image from being produced.
 
 ## Deploy (Docker / unraid)
 
-The app is a single container with one persistent volume (`/data`).
+The app is a single container with one persistent volume (`/data`). The compose
+file maps host **8766 → container 3000**.
 
 ```bash
 git pull
@@ -86,12 +87,17 @@ ADMIN_PASSWORD='…' SESSION_SECRET="$(openssl rand -hex 32)" \
   docker compose up -d --build
 ```
 
-- The container listens on port `3000`; map it (or put it behind your reverse
-  proxy for `https://vote.saltychart.net`).
+- Admin at `http://HOST:8766/admin`, voting at `http://HOST:8766/`; put it behind
+  a reverse proxy for `https://vote.saltychart.net`.
 - On unraid, point the `/data` volume at e.g.
-  `/mnt/user/appdata/ranked-choice-vote` so the database and uploaded images
-  survive rebuilds.
-- To update: `git pull` then `docker compose up -d --build`.
+  `/mnt/user/appdata/ranked-choice-vote/data` so the database and uploaded
+  images survive rebuilds.
+- To update: `git pull` then `docker compose up -d --build` (the test suite runs
+  inside the build, so a failing test blocks the deploy).
+
+**See [`DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md)** for the full guide: Unraid
+(compose, Docker UI, and the `ranked-choice-vote.xml` template), reverse proxy +
+SSL, network/port-forwarding, backups, health checks, and troubleshooting.
 
 ## How ranked choice works here
 

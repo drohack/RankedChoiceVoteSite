@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     ports:
       # host:container — change the host port to taste / put behind your reverse proxy
-      - "3000:3000"
+      - "8766:3000"
     environment:
       # REQUIRED in production — set real values (see .env.example).
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:?set ADMIN_PASSWORD}"
@@ -16,5 +16,16 @@ services:
       # VOTE_URL: "https://vote.saltychart.net"
     volumes:
       # Persist the SQLite db + uploaded images. On unraid point this at e.g.
-      # /mnt/user/appdata/ranked-choice-vote
+      # /mnt/user/appdata/ranked-choice-vote/data
       - ./data:/data
+    dns:
+      # Match the other self-hosted containers: embedded Docker DNS, then public.
+      - 127.0.0.11
+      - 8.8.8.8
+      - 1.1.1.1
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

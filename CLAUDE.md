@@ -101,4 +101,7 @@ self-hosted via Docker on unraid. See `README.md` for the full overview.
 
 `git pull` → `docker compose up -d --build`. The build runs `npm test` first, so
 a broken test fails the deploy. Volume `/data` holds `app.db` + `uploads/`.
-Required env: `ADMIN_PASSWORD`, `SESSION_SECRET`.
+Host port **8766 → 3000**. Required env: `ADMIN_PASSWORD`, `SESSION_SECRET`
+(optional `VOTE_URL`). Full guide (Unraid compose/UI/XML template, reverse proxy
++ SSL, backups, health checks, troubleshooting) is in `DEPLOYMENT_GUIDE.md`;
+the Unraid template is `ranked-choice-vote.xml`.

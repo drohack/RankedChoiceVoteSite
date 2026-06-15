@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>ranked-choice-vote</Name>
+  <Repository>ranked-choice-vote</Repository>
+  <Registry>https://github.com/drohack/RankedChoiceVoteSite</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/drohack/RankedChoiceVoteSite</Support>
+  <Project>https://github.com/drohack/RankedChoiceVoteSite</Project>
+  <Overview>Self-hosted ranked-choice (instant-runoff) voting site. Admin creates votings, voters rank on mobile, results animate round by round.</Overview>
+  <Category>Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8766]/admin</WebUI>
+  <Config Name="WebUI Port" Target="3000" Default="8766" Mode="tcp" Description="Host port mapped to the app (container listens on 3000)" Type="Port" Display="always" Required="true" Mask="false">8766</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/ranked-choice-vote/data" Mode="rw" Description="SQLite database + uploaded images" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/ranked-choice-vote/data</Config>
+  <Config Name="Admin Password" Target="ADMIN_PASSWORD" Default="change-me" Mode="" Description="Admin login password" Type="Variable" Display="always" Required="true" Mask="true">change-me</Config>
+  <Config Name="Session Secret" Target="SESSION_SECRET" Default="" Mode="" Description="Signs the admin session cookie. Use a long random string: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Public Vote URL" Target="VOTE_URL" Default="" Mode="" Description="Optional. Public URL shown on the QR/link, e.g. https://vote.saltychart.net. Leave blank to use the browser origin." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+</Container>

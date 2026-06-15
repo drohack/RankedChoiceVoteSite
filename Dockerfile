@@ -44,4 +44,8 @@ USER nextjs
 EXPOSE 3000
 VOLUME ["/data"]
 
+# Health check (works in the Unraid Docker UI too, not just compose).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 CMD ["node", "server.js"]
