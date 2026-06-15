@@ -63,6 +63,13 @@ function Confetti() {
 
 export default function ResultsView({ data }: { data: ResultsPayload }) {
   const [stage, setStage] = useState(0);
+  // Bumped on Replay so the bar list remounts and resets cleanly to round 1,
+  // instead of spring-morphing back from the final stage.
+  const [cycle, setCycle] = useState(0);
+  function replay() {
+    setStage(0);
+    setCycle((c) => c + 1);
+  }
   const itemById = useMemo(() => {
     const m = new Map<number, ResultItem>();
     data.items.forEach((it) => m.set(it.id, it));
@@ -83,8 +90,6 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
       : round.tallies;
   const hiddenCount = round.tallies.length - barTallies.length;
 
-  const maxVotes = Math.max(1, ...round.tallies.map((t) => t.votes));
-
   // Scale the whole row (image, name, bar, number, gap) to how many candidates
   // are left this round, so a crowded early round still fits on one screen
   // without scrolling, and everything grows large as the field narrows.
@@ -92,30 +97,30 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
   const baseTier =
     n >= 6
       ? {
-          img: 'h-10 w-10 md:h-14 md:w-14',
-          name: 'text-lg md:text-xl',
-          num: 'text-xl md:text-2xl',
+          img: 'h-14 w-14 md:h-20 md:w-20',
+          name: 'text-lg md:text-2xl',
+          num: 'text-xl md:text-3xl',
           bar: 'h-4 md:h-5',
           gap: 'gap-2',
         }
       : n === 5
         ? {
-            img: 'h-12 w-12 md:h-16 md:w-16',
-            name: 'text-xl md:text-2xl',
-            num: 'text-2xl md:text-3xl',
+            img: 'h-16 w-16 md:h-24 md:w-24',
+            name: 'text-xl md:text-3xl',
+            num: 'text-2xl md:text-4xl',
             bar: 'h-5 md:h-6',
             gap: 'gap-2 md:gap-3',
           }
         : n <= 3
           ? {
-              img: 'h-20 w-20 md:h-28 md:w-28',
+              img: 'h-24 w-24 md:h-36 md:w-36',
               name: 'text-3xl md:text-4xl',
               num: 'text-4xl md:text-5xl',
               bar: 'h-8 md:h-10',
               gap: 'gap-5 md:gap-6',
             }
           : {
-              img: 'h-16 w-16 md:h-20 md:w-20',
+              img: 'h-20 w-20 md:h-28 md:w-28',
               name: 'text-2xl md:text-3xl',
               num: 'text-3xl md:text-4xl',
               bar: 'h-6 md:h-8',
@@ -150,7 +155,10 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
             : `they're tied even on first-choice votes, so a fixed rule eliminates ${name} (so results are always reproducible)`;
         return `Tie for last at ${round.tie.lowVotes} votes between ${name} & ${others} — ${why}. Those ballots transfer to each voter's next choice.`;
       }
-      return `No majority yet — ${name} has the fewest votes (${elimVotes}) and is eliminated. Those ballots transfer to each voter's next choice.`;
+      if (elimVotes === 0) {
+        return `No majority yet — ${name} has no votes and is eliminated.`;
+      }
+      return `No majority yet — ${name} has the fewest votes (${elimVotes}) and is eliminated.`;
     }
     if (round.winnerId !== null) {
       const name = itemById.get(round.winnerId)?.name ?? '';
@@ -165,13 +173,46 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
   const prevVotes = new Map(
     prevRound ? prevRound.tallies.map((t) => [t.itemId, t.votes]) : []
   );
+  // Previous standings (among candidates still in this round) → so we can show
+  // when a transfer bumped a candidate up or down the order.
+  const prevRankOf = new Map<number, number>();
+  if (prevRound) {
+    prevRound.tallies
+      .map((t) => t.itemId)
+      .filter((id) => round.tallies.some((rt) => rt.itemId === id))
+      .forEach((id, i) => prevRankOf.set(id, i));
+  }
   const prevEliminatedName =
     prevRound && prevRound.eliminatedId !== null
       ? itemById.get(prevRound.eliminatedId)?.name ?? ''
       : '';
 
+  // Accurate description of what happened to the previously-eliminated
+  // candidate's ballots (transferred vs exhausted vs nothing).
+  const prevElimVotes =
+    prevRound && prevRound.eliminatedId !== null
+      ? prevVotes.get(prevRound.eliminatedId) ?? 0
+      : 0;
+  const exhaustedGained = prevRound ? round.exhausted - prevRound.exhausted : 0;
+  const transferNote = (() => {
+    if (stage === 0 || !prevRound) {
+      return `Each ballot counts for its top choice. Need a majority (${round.majority}) to win, or the last-place color is eliminated and its ballots transfer.`;
+    }
+    if (prevElimVotes === 0) {
+      return `${prevEliminatedName} had no first-choice votes, so nothing transferred.`;
+    }
+    const ballotWord = prevElimVotes === 1 ? 'ballot' : 'ballots';
+    if (exhaustedGained >= prevElimVotes) {
+      return `${prevEliminatedName}'s ${prevElimVotes} ${ballotWord} had no next choice, so they're now exhausted — nothing transferred.`;
+    }
+    if (exhaustedGained > 0) {
+      return `${prevEliminatedName}'s ${prevElimVotes} ${ballotWord} moved to each voter's next choice (green +N below); ${exhaustedGained} had no next choice and are now exhausted.`;
+    }
+    return `${prevEliminatedName}'s ${prevElimVotes} ${ballotWord} moved to each voter's next choice — the green +N below.`;
+  })();
+
   return (
-    <main className="mx-auto flex h-[100svh] w-full max-w-6xl flex-col px-6 py-5 md:px-10 md:py-8">
+    <main className="mx-auto flex h-[100svh] w-full max-w-6xl flex-col px-6 py-4 md:px-10 md:py-6">
       {isFinal && <Confetti />}
 
       {/* Header */}
@@ -184,7 +225,7 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
           </span>
           {isFinal && (
             <button
-              onClick={() => setStage(0)}
+              onClick={replay}
               className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800"
             >
               ↺ Replay
@@ -205,15 +246,16 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
         )}
       </div>
       <p className="mt-1.5 shrink-0 text-sm text-slate-400 md:text-base">
-        {stage === 0
-          ? `Each ballot counts for its top choice. Need a majority (${round.majority}) to win, or the last-place color is eliminated and its ballots transfer.`
-          : `${prevEliminatedName}'s ballots moved to each voter's next choice — the green +N below. (Majority can drop as ballots run out of choices.)`}
+        {transferNote}
       </p>
 
       {/* Bars — fill remaining space, vertically centered */}
-      <div className={`flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden px-2 py-2 ${tier.gap}`}>
+      <div
+        key={cycle}
+        className={`flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden px-2 py-1 ${tier.gap}`}
+      >
         <AnimatePresence mode="popLayout">
-          {barTallies.map((t) => {
+          {barTallies.map((t, idx) => {
             const item = itemById.get(t.itemId);
             const eliminated = round.eliminatedId === t.itemId;
             const winner = isFinal && data.winnerId === t.itemId;
@@ -222,8 +264,15 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
               : eliminated
                 ? BAR_COLORS.eliminated
                 : BAR_COLORS.normal;
-            const pct = (t.votes / maxVotes) * 100;
             const delta = prevRound ? t.votes - (prevVotes.get(t.itemId) ?? 0) : 0;
+            // Bars are scaled to the majority threshold, so a bar only fills
+            // all the way when that color crosses the line and wins. The slice
+            // gained from the just-eliminated color is shown in green.
+            const totalPct = Math.min(100, (t.votes / round.majority) * 100);
+            const transferPct = t.votes > 0 ? totalPct * (delta / t.votes) : 0;
+            const basePct = totalPct - transferPct;
+            const prevRank = prevRankOf.get(t.itemId);
+            const rankUp = prevRank !== undefined ? prevRank - idx : 0;
             return (
               <motion.div
                 key={t.itemId}
@@ -257,8 +306,18 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
                         </span>
                       )}
                       {delta > 0 && (
-                        <span className="rounded bg-emerald-600/20 px-2 py-0.5 text-sm font-semibold text-emerald-300">
+                        <span className="rounded bg-emerald-500/25 px-2 py-0.5 text-sm font-semibold text-emerald-300">
                           +{delta}
+                        </span>
+                      )}
+                      {!eliminated && rankUp > 0 && (
+                        <span className="text-sm font-bold text-emerald-400" title="moved up">
+                          ▲{rankUp}
+                        </span>
+                      )}
+                      {!eliminated && rankUp < 0 && (
+                        <span className="text-sm font-bold text-slate-500" title="moved down">
+                          ▼{-rankUp}
                         </span>
                       )}
                     </span>
@@ -266,13 +325,23 @@ export default function ResultsView({ data }: { data: ResultsPayload }) {
                       {t.votes}
                     </span>
                   </div>
-                  <div className={`overflow-hidden rounded-full bg-slate-800 ${tier.bar}`}>
+                  <div className={`flex overflow-hidden rounded-full bg-slate-800 ${tier.bar}`}>
+                    {/* existing votes */}
                     <motion.div
-                      className={`h-full rounded-full ${color}`}
+                      className={`h-full ${color}`}
                       initial={false}
-                      animate={{ width: `${pct}%` }}
+                      animate={{ width: `${basePct}%` }}
                       transition={{ type: 'spring', stiffness: 120, damping: 20 }}
                     />
+                    {/* votes transferred in from the eliminated color */}
+                    {transferPct > 0 && (
+                      <motion.div
+                        className="h-full bg-emerald-400"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${transferPct}%` }}
+                        transition={{ type: 'spring', stiffness: 120, damping: 18, delay: 0.3 }}
+                      />
+                    )}
                   </div>
                 </div>
               </motion.div>
